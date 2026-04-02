@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DriverStatus {
+  offline
+  online
+}
+
+enum QueueStatus {
+  active
+  left
+  served
+}
+
+enum PaymentStatus {
+  pending
+  success
+  failed
+}
+
+enum PaymentSystem {
+  click
+  payme
+}
+
+model Driver {
+  id            BigInt         @id @default(autoincrement())
+  name          String
+  phone         String         @unique
+  carNumber     String         @unique @map("car_number")
+  cardNumber    String?        @map("card_number")
+  paymentSlug   String         @unique @map("payment_slug")
+  status        DriverStatus   @default(offline)
+  routeId       BigInt?        @map("route_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  route         Route?         @relation(fields: [routeId], references: [id], onDelete: SetNull)
+  location      DriverLocation?
+  payments      Payment[]
+  queues        Queue[]
+  authCodes     AuthCode[]
+
+  @@map("drivers")
+}
+
+model Route {
+  id         BigInt       @id @default(autoincrement())
+  name       String
+  price      Decimal      @db.Decimal(12, 2)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  points     RoutePoint[]
+  drivers    Driver[]
+
+  @@map("routes")
+}
+
+model RoutePoint {
+  id         BigInt    @id @default(autoincrement())
+  routeId    BigInt    @map("route_id")
+  name       String
+  lat        Decimal   @db.Decimal(10, 7)
+  lng        Decimal   @db.Decimal(10, 7)
+  radius     Int       @default(50)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  route      Route     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  queues     Queue[]
+
+  @@map("route_points")
+}
+
+model Queue {
+  id         BigInt      @id @default(autoincrement())
+  driverId   BigInt      @map("driver_id")
+  pointId    BigInt      @map("point_id")
+  position   Int
+  status     QueueStatus @default(active)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  leftAt     DateTime?   @map("left_at")
+  driver     Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  point      RoutePoint  @relation(fields: [pointId], references: [id], onDelete: Cascade)
+
+  @@index([pointId, status, position])
+  @@map("queues")
+}
+
+model DriverLocation {
+  driverId   BigInt    @id @map("driver_id")
+  lat        Decimal   @db.Decimal(10, 7)
+  lng        Decimal   @db.Decimal(10, 7)
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  driver     Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("driver_locations")
+}
+
+model Payment {
+  id                    BigInt         @id @default(autoincrement())
+  driverId              BigInt         @map("driver_id")
+  amount                Decimal        @db.Decimal(12, 2)
+  status                PaymentStatus  @default(pending)
+  paymentSystem         PaymentSystem  @map("payment_system")
+  externalTransactionId String?        @unique @map("external_transaction_id")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+  driver                Driver         @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, createdAt])
+  @@map("payments")
+}
+
+model AuthCode {
+  id         BigInt    @id @default(autoincrement())
+  driverId    BigInt?   @map("driver_id")
+  phone      String
+  code       String
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  driver     Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([phone, createdAt])
+  @@map("auth_codes")
+}

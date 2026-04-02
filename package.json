@@ -1,0 +1,30 @@
+{
+  "name": "damastic",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "node --watch backend/server.js",
+    "dev:web": "vite --host 0.0.0.0 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "start": "node backend/server.js",
+    "backend:install": "npm install --prefix apps/backend",
+    "backend:build": "npm --prefix apps/backend run build",
+    "backend:dev": "npm --prefix apps/backend run start:dev",
+    "backend:db:push": "npm --prefix apps/backend run prisma:push",
+    "backend:db:seed": "npm --prefix apps/backend run prisma:seed"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
+    "vite": "^7.1.10"
+  }
+}

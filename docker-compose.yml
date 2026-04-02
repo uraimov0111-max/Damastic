@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: damastic-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: damastic
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - damastic_pg_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./apps/backend
+    container_name: damastic-backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - ./apps/backend/.env.example
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/damastic
+      CLIENT_APP_URL: http://localhost:5173
+      PORT: 4000
+      JWT_SECRET: change-me
+      JWT_EXPIRES_IN: 7d
+      PAYMENT_BASE_URL: https://pay.damastic.uz
+    ports:
+      - "4000:4000"
+
+volumes:
+  damastic_pg_data:

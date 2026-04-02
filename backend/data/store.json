@@ -1,0 +1,173 @@
+{
+  "auth": {
+    "demoCode": "1234",
+    "sessionId": "session-1775160448059",
+    "lastPhone": "+998 90 123 45 67"
+  },
+  "driver": {
+    "id": 1,
+    "name": "Abdullayev Ulugbek",
+    "phone": "+998 90 123 45 67",
+    "car": "10A 111 UZ",
+    "line": "33-liniya",
+    "status": "online"
+  },
+  "dashboard": {
+    "route": {
+      "from": "A punkt",
+      "to": "B punkt"
+    },
+    "mapDrivers": [
+      {
+        "id": 1,
+        "name": "Alisher",
+        "color": "#4f8fff",
+        "map": {
+          "x": 72,
+          "y": 116
+        }
+      },
+      {
+        "id": 2,
+        "name": "Bobur",
+        "color": "#ffb347",
+        "map": {
+          "x": 132,
+          "y": 92
+        }
+      },
+      {
+        "id": 3,
+        "name": "Jasur",
+        "color": "#9b72ff",
+        "map": {
+          "x": 188,
+          "y": 90
+        }
+      },
+      {
+        "id": 4,
+        "name": "Siz",
+        "isYou": true,
+        "color": "#12d18e",
+        "map": {
+          "x": 248,
+          "y": 83
+        }
+      }
+    ]
+  },
+  "queue": {
+    "joined": true,
+    "entries": [
+      {
+        "id": "d1",
+        "name": "Alisher D.",
+        "car": "01A 234 BC",
+        "pos": 1,
+        "isYou": false
+      },
+      {
+        "id": "d2",
+        "name": "Bobur R.",
+        "car": "40F 567 XA",
+        "pos": 2,
+        "isYou": false
+      },
+      {
+        "id": "d3",
+        "name": "Jasur M.",
+        "car": "30B 891 KL",
+        "pos": 3,
+        "isYou": false
+      },
+      {
+        "id": "you",
+        "name": "Abdullayev Ulugbek",
+        "car": "10A 111 UZ",
+        "isYou": true,
+        "pos": 4
+      }
+    ]
+  },
+  "queueHistory": [
+    {
+      "time": "01:16",
+      "point": "A punkt",
+      "pos": 4,
+      "duration": "Yangi navbat",
+      "date": "2026-04-02T20:16:55.218Z"
+    },
+    {
+      "time": "08:14",
+      "point": "A punkt",
+      "pos": 2,
+      "duration": "18 daqiqa",
+      "date": "2026-04-03T08:14:00.000Z"
+    },
+    {
+      "time": "10:32",
+      "point": "A punkt",
+      "pos": 1,
+      "duration": "5 daqiqa",
+      "date": "2026-04-03T10:32:00.000Z"
+    },
+    {
+      "time": "12:55",
+      "point": "B punkt",
+      "pos": 3,
+      "duration": "27 daqiqa",
+      "date": "2026-04-03T12:55:00.000Z"
+    }
+  ],
+  "payments": {
+    "nextAmount": 5000,
+    "payLink": "pay.damastic.uz/driver/123",
+    "methods": [
+      "Payme",
+      "Click"
+    ],
+    "transactions": [
+      {
+        "transactionId": "TXN-5140",
+        "amount": 5000,
+        "via": "Click",
+        "status": "success",
+        "time": "01:07",
+        "createdAt": "2026-04-02T20:07:55.636Z"
+      },
+      {
+        "transactionId": "TXN-1195",
+        "amount": 5000,
+        "via": "Payme",
+        "status": "success",
+        "time": "01:07",
+        "createdAt": "2026-04-02T20:07:53.341Z"
+      },
+      {
+        "transactionId": "TXN-8821",
+        "amount": 5000,
+        "via": "Payme",
+        "status": "success",
+        "time": "14:45",
+        "createdAt": "2026-04-03T14:45:00.000Z"
+      },
+      {
+        "transactionId": "TXN-8819",
+        "amount": 5000,
+        "via": "Click",
+        "status": "pending",
+        "time": "13:20",
+        "createdAt": "2026-04-03T13:20:00.000Z"
+      },
+      {
+        "transactionId": "TXN-8811",
+        "amount": 5000,
+        "via": "Payme",
+        "status": "failed",
+        "time": "11:30",
+        "createdAt": "2026-04-03T11:30:00.000Z"
+      }
+    ]
+  }
+}
