@@ -2,7 +2,9 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../database/prisma.service";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
+import { WalletsService } from "../wallets/wallets.service";
 import { PaymentCallbackDto } from "./dto/payment-callback.dto";
+import { PaymentSignatureService } from "./payment-signature.service";
 
 @Injectable()
 export class PaymentsService {
@@ -10,12 +12,22 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly walletsService: WalletsService,
+    private readonly paymentSignatureService: PaymentSignatureService,
   ) {}
+
+  private get paymentCallbackLogs() {
+    return this.prisma as PrismaService & {
+      paymentCallbackLog: {
+        create(args: { data: Record<string, unknown> }): Promise<unknown>;
+      };
+    };
+  }
 
   async getDriverLink(driverId: bigint) {
     const driver = await this.prisma.driver.findUnique({
       where: { id: driverId },
-      include: { route: true },
+      include: { route: true, wallet: true, vehicle: true },
     });
 
     if (!driver) {
@@ -36,6 +48,8 @@ export class PaymentsService {
       payLink,
       qrPayload: payLink,
       systems: ["click", "payme"],
+      walletBalance: driver.wallet?.balance.toNumber() ?? 0,
+      vehicleId: driver.vehicleId?.toString() ?? null,
     };
   }
 
@@ -59,38 +73,111 @@ export class PaymentsService {
     }));
   }
 
-  async handleCallback(system: "click" | "payme", dto: PaymentCallbackDto) {
-    const payment = await this.prisma.payment.upsert({
-      where: {
-        externalTransactionId: dto.transactionId,
-      },
-      update: {
-        amount: dto.amount,
-        status: dto.status,
-        paymentSystem: system,
-      },
-      create: {
-        driverId: BigInt(dto.driverId),
-        amount: dto.amount,
-        status: dto.status,
-        paymentSystem: system,
-        externalTransactionId: dto.transactionId,
-      },
-    });
-
-    this.realtimeGateway.emitPaymentUpdate({
-      paymentId: payment.id.toString(),
-      driverId: payment.driverId.toString(),
-      status: payment.status,
-      paymentSystem: payment.paymentSystem,
-      amount: payment.amount.toNumber(),
-    });
-
-    return {
-      success: true,
-      paymentId: payment.id.toString(),
-      status: payment.status,
+  async handleCallback(
+    system: "click" | "payme",
+    dto: PaymentCallbackDto,
+    headerSignature?: string,
+  ) {
+    const callbackPayload = {
+      ...dto,
+      signature: headerSignature ?? dto.signature ?? null,
     };
+
+    let verified = false;
+
+    try {
+      verified = this.paymentSignatureService.validateCallback(
+        system,
+        dto,
+        headerSignature ?? dto.signature,
+      );
+
+      const payment = await this.prisma.$transaction(async (tx) => {
+        const driver = await tx.driver.findUnique({
+          where: { id: BigInt(dto.driverId) },
+          select: { vehicleId: true },
+        });
+
+        const storedPayment = await tx.payment.upsert({
+          where: {
+            externalTransactionId: dto.transactionId,
+          },
+          update: {
+            amount: dto.amount,
+            status: dto.status,
+            paymentSystem: system,
+            vehicleId: driver?.vehicleId ?? null,
+          },
+          create: {
+            driverId: BigInt(dto.driverId),
+            vehicleId: driver?.vehicleId ?? null,
+            amount: dto.amount,
+            status: dto.status,
+            paymentSystem: system,
+            externalTransactionId: dto.transactionId,
+          },
+        });
+
+        if (storedPayment.status === "success" && !storedPayment.walletPostedAt) {
+          await this.walletsService.creditDriver(tx, {
+            driverId: storedPayment.driverId,
+            amount: storedPayment.amount.toNumber(),
+            entryType: "electronic_in",
+            note: `${system} orqali elektron to'lov`,
+            paymentId: storedPayment.id,
+          });
+
+          return tx.payment.update({
+            where: { id: storedPayment.id },
+            data: {
+              walletPostedAt: new Date(),
+            },
+          });
+        }
+
+        return storedPayment;
+      });
+
+      await this.paymentCallbackLogs.paymentCallbackLog.create({
+        data: {
+          provider: system,
+          transactionId: dto.transactionId,
+          driverId: BigInt(dto.driverId),
+          status: dto.status,
+          verified,
+          payload: callbackPayload,
+        },
+      });
+
+      this.realtimeGateway.emitPaymentUpdate({
+        paymentId: payment.id.toString(),
+        driverId: payment.driverId.toString(),
+        status: payment.status,
+        paymentSystem: payment.paymentSystem,
+        amount: payment.amount.toNumber(),
+      });
+
+      return {
+        success: true,
+        paymentId: payment.id.toString(),
+        status: payment.status,
+        verified,
+      };
+    } catch (error) {
+      await this.paymentCallbackLogs.paymentCallbackLog.create({
+        data: {
+          provider: system,
+          transactionId: dto.transactionId,
+          driverId: BigInt(dto.driverId),
+          status: dto.status,
+          verified,
+          errorMessage: this.resolveErrorMessage(error),
+          payload: callbackPayload,
+        },
+      });
+
+      throw error;
+    }
   }
 
   async getSummary(driverId: bigint) {
@@ -117,5 +204,13 @@ export class PaymentsService {
       failed,
       totalPaid: totalPaid._sum.amount?.toNumber() ?? 0,
     };
+  }
+
+  private resolveErrorMessage(error: unknown) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return String(error);
   }
 }

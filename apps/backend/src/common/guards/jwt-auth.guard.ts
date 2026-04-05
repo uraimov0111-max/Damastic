@@ -25,7 +25,15 @@ export class JwtAuthGuard implements CanActivate {
     const token = authHeader.slice(7);
 
     try {
-      const payload = await this.jwtService.verifyAsync<{ sub: string }>(token);
+      const payload = await this.jwtService.verifyAsync<{
+        sub: string;
+        typ?: string;
+      }>(token);
+
+      if (payload.typ !== "driver") {
+        throw new UnauthorizedException("Driver token talab qilinadi");
+      }
+
       const driver = await this.prisma.driver.findUnique({
         where: { id: BigInt(payload.sub) },
         select: { id: true, phone: true },

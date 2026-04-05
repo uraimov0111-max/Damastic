@@ -14,7 +14,10 @@ export class DriversService {
     const driver = await this.prisma.driver.findUnique({
       where: { id: driverId },
       include: {
+        alliance: true,
         route: true,
+        vehicle: true,
+        wallet: true,
         location: true,
       },
     });
@@ -24,9 +27,26 @@ export class DriversService {
     }
 
     return {
-      ...driver,
       id: driver.id.toString(),
+      name: driver.name,
+      phone: driver.phone,
+      status: driver.status,
+      carNumber: driver.vehicle?.plateNumber ?? driver.carNumber,
+      cardNumber: driver.cardNumber,
+      paymentSlug: driver.paymentSlug,
+      createdAt: driver.createdAt,
+      updatedAt: driver.updatedAt,
+      allianceId: driver.allianceId?.toString() ?? null,
       routeId: driver.routeId?.toString() ?? null,
+      vehicleId: driver.vehicleId?.toString() ?? null,
+      alliance: driver.alliance
+        ? {
+            id: driver.alliance.id.toString(),
+            name: driver.alliance.name,
+            slug: driver.alliance.slug,
+            status: driver.alliance.status,
+          }
+        : null,
       route: driver.route
         ? {
             id: driver.route.id.toString(),
@@ -34,6 +54,15 @@ export class DriversService {
             price: driver.route.price.toNumber(),
           }
         : null,
+      vehicle: driver.vehicle
+        ? {
+            id: driver.vehicle.id.toString(),
+            plateNumber: driver.vehicle.plateNumber,
+            status: driver.vehicle.status,
+            qrToken: driver.vehicle.qrToken,
+          }
+        : null,
+      walletBalance: driver.wallet?.balance.toNumber() ?? 0,
       location: driver.location
         ? {
             lat: driver.location.lat.toNumber(),
@@ -54,6 +83,8 @@ export class DriversService {
       },
       include: {
         route: true,
+        vehicle: true,
+        wallet: true,
       },
     });
 
@@ -62,8 +93,10 @@ export class DriversService {
       name: updated.name,
       phone: updated.phone,
       status: updated.status,
-      carNumber: updated.carNumber,
+      carNumber: updated.vehicle?.plateNumber ?? updated.carNumber,
       cardNumber: updated.cardNumber,
+      vehicleId: updated.vehicleId?.toString() ?? null,
+      walletBalance: updated.wallet?.balance.toNumber() ?? 0,
       route: updated.route
         ? {
             id: updated.route.id.toString(),

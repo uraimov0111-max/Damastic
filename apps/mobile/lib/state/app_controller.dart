@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../core/config/app_config.dart';
 import '../core/network/api_client.dart';
 import '../core/network/socket_service.dart';
+import '../core/storage/session_storage.dart';
 import '../core/utils/json_parsing.dart';
 import '../models/auth_session.dart';
+import '../models/cash_summary.dart';
 import '../models/driver_location_model.dart';
 import '../models/driver_marker.dart';
 import '../models/driver_profile.dart';
@@ -18,13 +23,17 @@ class AppController extends ChangeNotifier {
   AppController({
     ApiClient? apiClient,
     SocketService? socketService,
+    SessionStorage? sessionStorage,
   })  : _apiClient = apiClient ?? ApiClient(),
-        _socketService = socketService ?? SocketService() {
+        _socketService = socketService ?? SocketService(),
+        _sessionStorage = sessionStorage ?? SessionStorage() {
     _bindSocketCallbacks();
+    _restoreSession();
   }
 
   final ApiClient _apiClient;
   final SocketService _socketService;
+  final SessionStorage _sessionStorage;
 
   AuthSession? _session;
   List<DamasticRouteModel> _routes = const [];
@@ -32,6 +41,7 @@ class AppController extends ChangeNotifier {
   QueuePosition _queuePosition = const QueuePosition(active: false);
   PaymentLink? _paymentLink;
   PaymentSummary? _paymentSummary;
+  CashSummary? _cashSummary;
   List<DriverMarker> _driverMarkers = const [];
   String? _selectedPointId;
   String? _pendingPhone;
@@ -39,12 +49,16 @@ class AppController extends ChangeNotifier {
   String? _errorMessage;
   String? _infoMessage;
   bool _busy = false;
+  bool _initialized = false;
   bool _codeRequested = false;
   bool _socketConnected = false;
   int _currentTab = 0;
+  Timer? _locationTimer;
+  bool _sendingLocation = false;
 
   bool get isAuthenticated => _session != null;
   bool get busy => _busy;
+  bool get initialized => _initialized;
   bool get codeRequested => _codeRequested;
   bool get socketConnected => _socketConnected;
   bool get isOnline => driver?.status == 'online';
@@ -57,6 +71,7 @@ class AppController extends ChangeNotifier {
   DriverProfile? get driver => _session?.driver;
   PaymentLink? get paymentLink => _paymentLink;
   PaymentSummary? get paymentSummary => _paymentSummary;
+  CashSummary? get cashSummary => _cashSummary;
   QueueSnapshot? get queueSnapshot => _queueSnapshot;
   QueuePosition get queuePosition => _queuePosition;
   String? get selectedPointId => _selectedPointId;
@@ -140,10 +155,12 @@ class AppController extends ChangeNotifier {
       final session = await _apiClient.verifyCode(_pendingPhone!, code.trim());
       _session = session;
       _apiClient.setAccessToken(session.accessToken);
+      await _sessionStorage.saveAccessToken(session.accessToken);
       _codeRequested = false;
       _infoMessage = 'Kirish muvaffaqiyatli.';
       await refreshAll();
       _connectRealtime();
+      await _ensureLocationTracking();
     } catch (error) {
       _errorMessage = _resolveError(error);
     } finally {
@@ -164,6 +181,7 @@ class AppController extends ChangeNotifier {
         _loadProfile(),
         _loadRoutes(),
         loadPaymentData(),
+        loadCashSummary(),
         _loadMyQueuePosition(),
       ]);
 
@@ -218,6 +236,20 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<void> loadCashSummary() async {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      _cashSummary = await _apiClient.getCashSummary();
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = _resolveError(error);
+      notifyListeners();
+    }
+  }
+
   Future<void> toggleStatus(bool isOnline) async {
     if (!isAuthenticated || driver == null) {
       return;
@@ -231,6 +263,12 @@ class AppController extends ChangeNotifier {
       _session = _session?.copyWith(
         driver: driver!.copyWith(status: statusPatch.status),
       );
+
+      if (statusPatch.status == 'online') {
+        await _ensureLocationTracking();
+      } else {
+        _stopLocationTracking();
+      }
     } catch (error) {
       _errorMessage = _resolveError(error);
     } finally {
@@ -290,11 +328,12 @@ class AppController extends ChangeNotifier {
     required double lat,
     required double lng,
   }) async {
-    if (!isAuthenticated || driver == null) {
+    if (!isAuthenticated || driver == null || _sendingLocation) {
       return;
     }
 
     try {
+      _sendingLocation = true;
       final payload = await _apiClient.updateLocation(lat: lat, lng: lng);
       final location = DriverLocationModel.fromJson(payload);
       _session = _session?.copyWith(
@@ -304,6 +343,30 @@ class AppController extends ChangeNotifier {
     } catch (error) {
       _errorMessage = _resolveError(error);
       notifyListeners();
+    } finally {
+      _sendingLocation = false;
+    }
+  }
+
+  Future<void> recordCashEntry(int passengerCount) async {
+    if (!isAuthenticated || passengerCount <= 0) {
+      return;
+    }
+
+    _setBusy(true);
+    _clearMessages();
+
+    try {
+      await _apiClient.createCashEntry(passengerCount);
+      await Future.wait([
+        loadCashSummary(),
+        _loadProfile(),
+      ]);
+      _infoMessage = 'Naqd tushum saqlandi.';
+    } catch (error) {
+      _errorMessage = _resolveError(error);
+    } finally {
+      _setBusy(false);
     }
   }
 
@@ -313,6 +376,7 @@ class AppController extends ChangeNotifier {
   }
 
   void logout() {
+    _stopLocationTracking();
     _socketService.disconnect();
     _session = null;
     _routes = const [];
@@ -320,6 +384,7 @@ class AppController extends ChangeNotifier {
     _queuePosition = const QueuePosition(active: false);
     _paymentLink = null;
     _paymentSummary = null;
+    _cashSummary = null;
     _driverMarkers = const [];
     _selectedPointId = null;
     _pendingPhone = null;
@@ -331,11 +396,13 @@ class AppController extends ChangeNotifier {
     _socketConnected = false;
     _currentTab = 0;
     _apiClient.setAccessToken(null);
+    unawaited(_sessionStorage.clear());
     notifyListeners();
   }
 
   @override
   void dispose() {
+    _stopLocationTracking();
     _socketService.disconnect();
     super.dispose();
   }
@@ -409,11 +476,12 @@ class AppController extends ChangeNotifier {
   }
 
   void _connectRealtime() {
-    if (!isAuthenticated) {
+    final accessToken = _session?.accessToken;
+    if (!isAuthenticated || accessToken == null || accessToken.isEmpty) {
       return;
     }
 
-    _socketService.connect();
+    _socketService.connect(accessToken);
   }
 
   Future<void> _loadProfile() async {
@@ -475,5 +543,89 @@ class AppController extends ChangeNotifier {
     }
 
     return error.toString().replaceFirst('Exception: ', '');
+  }
+
+  Future<void> _restoreSession() async {
+    try {
+      final accessToken = await _sessionStorage.readAccessToken();
+      if (accessToken == null || accessToken.isEmpty) {
+        return;
+      }
+
+      _apiClient.setAccessToken(accessToken);
+      final profile = await _apiClient.getMe();
+      _session = AuthSession(
+        accessToken: accessToken,
+        driver: profile,
+      );
+      await refreshAll();
+      _connectRealtime();
+      await _ensureLocationTracking();
+    } catch (_) {
+      _session = null;
+      _apiClient.setAccessToken(null);
+      await _sessionStorage.clear();
+    } finally {
+      _initialized = true;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _ensureLocationTracking() async {
+    if (!isAuthenticated || !isOnline || _locationTimer != null) {
+      return;
+    }
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _errorMessage = 'GPS xizmati yoqilmagan.';
+      notifyListeners();
+      return;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      _errorMessage = 'GPS ruxsati talab qilinadi.';
+      notifyListeners();
+      return;
+    }
+
+    await _captureAndSendLocation();
+    _locationTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _captureAndSendLocation(),
+    );
+  }
+
+  void _stopLocationTracking() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+  }
+
+  Future<void> _captureAndSendLocation() async {
+    if (!isAuthenticated || !isOnline) {
+      return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      await pushLocation(
+        lat: position.latitude,
+        lng: position.longitude,
+      );
+    } catch (error) {
+      _errorMessage = _resolveError(error);
+      notifyListeners();
+    }
   }
 }

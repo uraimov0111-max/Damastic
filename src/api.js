@@ -1,4 +1,5 @@
-const TOKEN_KEY = "damastic-token";
+const TOKEN_KEY = "damastic-admin-token";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
 function getToken() {
   return window.localStorage.getItem(TOKEN_KEY);
@@ -12,10 +13,27 @@ function clearToken() {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
+function normalizeError(payload) {
+  if (Array.isArray(payload?.message)) {
+    return payload.message.join(", ");
+  }
+
+  if (typeof payload?.message === "string") {
+    return payload.message;
+  }
+
+  if (typeof payload?.error === "string") {
+    return payload.error;
+  }
+
+  return "Server xatosi yuz berdi";
+}
+
 async function request(path, options = {}) {
   const token = getToken();
   const headers = {
-    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
     ...(options.headers ?? {}),
   };
 
@@ -23,15 +41,18 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(path, {
+  const response = await fetch(
+    API_BASE_URL ? `${API_BASE_URL}${path}` : path,
+    {
     ...options,
     headers,
-  });
+    },
+  );
 
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(payload.error ?? "Server xatosi yuz berdi");
+    throw new Error(normalizeError(payload));
   }
 
   return payload;
@@ -43,58 +64,71 @@ export const authStorage = {
   clearToken,
 };
 
-export const api = {
+export const adminApi = {
   auth: {
-    sendCode(phone) {
-      return request("/api/auth/send-code", {
+    login(email, password) {
+      return request("/api/admin/auth/login", {
         method: "POST",
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ email, password }),
       });
     },
-    verify({ phone, code, sessionId }) {
-      return request("/api/auth/verify", {
+    me() {
+      return request("/api/admin/auth/me");
+    },
+  },
+  super: {
+    overview() {
+      return request("/api/admin/super/overview");
+    },
+    alliances() {
+      return request("/api/admin/super/alliances");
+    },
+    createAlliance(payload) {
+      return request("/api/admin/super/alliances", {
         method: "POST",
-        body: JSON.stringify({ phone, code, sessionId }),
+        body: JSON.stringify(payload),
       });
     },
   },
-  app: {
-    getState() {
-      return request("/api/app-state");
+  alliance: {
+    dashboard() {
+      return request("/api/admin/alliance/dashboard");
     },
-  },
-  driver: {
-    updateStatus(status) {
-      return request("/api/driver/status", {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
+    drivers() {
+      return request("/api/admin/alliance/drivers");
     },
-    updateProfile(profile) {
-      return request("/api/driver/profile", {
-        method: "PATCH",
-        body: JSON.stringify(profile),
-      });
-    },
-  },
-  queue: {
-    join() {
-      return request("/api/queue/join", {
+    createDriver(payload) {
+      return request("/api/admin/alliance/drivers", {
         method: "POST",
+        body: JSON.stringify(payload),
       });
     },
-    leave() {
-      return request("/api/queue/leave", {
+    vehicles() {
+      return request("/api/admin/alliance/vehicles");
+    },
+    createVehicle(payload) {
+      return request("/api/admin/alliance/vehicles", {
         method: "POST",
+        body: JSON.stringify(payload),
       });
     },
-  },
-  payments: {
-    simulate(via) {
-      return request("/api/payments/simulate", {
+    routes() {
+      return request("/api/admin/alliance/routes");
+    },
+    createRoute(payload) {
+      return request("/api/admin/alliance/routes", {
         method: "POST",
-        body: JSON.stringify({ via }),
+        body: JSON.stringify(payload),
       });
+    },
+    liveQueues() {
+      return request("/api/admin/alliance/queues/live");
+    },
+    payments() {
+      return request("/api/admin/alliance/payments");
+    },
+    cashEntries() {
+      return request("/api/admin/alliance/cash-entries");
     },
   },
 };

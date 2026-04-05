@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../models/auth_session.dart';
+import '../../models/cash_summary.dart';
 import '../../models/driver_profile.dart';
 import '../../models/payment_link.dart';
 import '../../models/payment_summary.dart';
@@ -135,5 +136,19 @@ class ApiClient {
   Future<PaymentSummary> getPaymentSummary() async {
     final response = await _dio.get('/payments/summary');
     return PaymentSummary.fromJson(ensureMap(response.data));
+  }
+
+  Future<Map<String, dynamic>> createCashEntry(int passengerCount) async {
+    final response = await _dio.post(
+      '/cash-entries',
+      data: {'passengerCount': passengerCount},
+    );
+
+    return ensureMap(response.data);
+  }
+
+  Future<CashSummary> getCashSummary() async {
+    final response = await _dio.get('/cash-entries/summary');
+    return CashSummary.fromJson(ensureMap(response.data));
   }
 }

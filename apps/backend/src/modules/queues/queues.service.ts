@@ -55,6 +55,10 @@ export class QueuesService {
       throw new BadRequestException("Faqat online haydovchi navbat ola oladi");
     }
 
+    if (!driver.vehicleId) {
+      throw new BadRequestException("Navbat uchun haydovchiga ro'yxatdan o'tgan mashina biriktirilishi kerak");
+    }
+
     const point = await this.prisma.routePoint.findUnique({
       where: { id: pointId },
     });
@@ -84,35 +88,53 @@ export class QueuesService {
       );
     }
 
-    const existingQueue = await this.prisma.queue.findFirst({
-      where: {
-        driverId,
-        status: "active",
-      },
-    });
+    const queue = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const existingQueue = await tx.queue.findFirst({
+        where: {
+          driverId,
+          status: "active",
+        },
+      });
 
-    if (existingQueue) {
-      throw new BadRequestException("Haydovchi allaqachon aktiv navbatda turibdi");
-    }
+      if (existingQueue) {
+        throw new BadRequestException("Haydovchi allaqachon aktiv navbatda turibdi");
+      }
 
-    const lastActive = await this.prisma.queue.findFirst({
-      where: {
-        pointId,
-        status: "active",
-      },
-      orderBy: {
-        position: "desc",
-      },
-    });
+      const counter = await tx.queueCounter.upsert({
+        where: {
+          pointId,
+        },
+        create: {
+          pointId,
+          nextPosition: 2,
+        },
+        update: {
+          nextPosition: {
+            increment: 1,
+          },
+        },
+      });
 
-    const position = (lastActive?.position ?? 0) + 1;
+      const position = counter.nextPosition - 1;
+      const createdQueue = await tx.queue.create({
+        data: {
+          driverId,
+          pointId,
+          position,
+        },
+      });
 
-    const queue = await this.prisma.queue.create({
-      data: {
-        driverId,
-        pointId,
-        position,
-      },
+      await tx.queueEvent.create({
+        data: {
+          queueId: createdQueue.id,
+          driverId,
+          pointId,
+          eventType: "joined",
+          position,
+        },
+      });
+
+      return createdQueue;
     });
 
     const snapshot = await this.getPointQueue(dto.pointId);
@@ -151,6 +173,16 @@ export class QueuesService {
         },
       });
 
+      await tx.queueEvent.create({
+        data: {
+          queueId: activeQueue.id,
+          driverId,
+          pointId: activeQueue.pointId,
+          eventType: "left",
+          position: activeQueue.position,
+        },
+      });
+
       const tailQueues = await tx.queue.findMany({
         where: {
           pointId: activeQueue.pointId,
@@ -166,10 +198,21 @@ export class QueuesService {
 
       await Promise.all(
         tailQueues.map((queue) =>
-          tx.queue.update({
-            where: { id: queue.id },
-            data: { position: queue.position - 1 },
-          }),
+          Promise.all([
+            tx.queue.update({
+              where: { id: queue.id },
+              data: { position: queue.position - 1 },
+            }),
+            tx.queueEvent.create({
+              data: {
+                queueId: queue.id,
+                driverId: queue.driverId,
+                pointId: queue.pointId,
+                eventType: "auto_shift",
+                position: queue.position - 1,
+              },
+            }),
+          ]),
         ),
       );
     });

@@ -50,7 +50,7 @@ Backend modules:
 - realtime
 - health
 
-### 3. Flutter-ready mobile skeleton
+### 3. Flutter mobile client
 
 The mobile structure is prepared under:
 - [apps/mobile](d:/Backend dasturlash/Damastic/apps/mobile/README.md)
@@ -60,6 +60,10 @@ Key files:
 - [apps/mobile/lib/main.dart](d:/Backend dasturlash/Damastic/apps/mobile/lib/main.dart#L5)
 - [apps/mobile/lib/features/auth/login_screen.dart](d:/Backend dasturlash/Damastic/apps/mobile/lib/features/auth/login_screen.dart#L4)
 - [apps/mobile/lib/features/main/main_screen.dart](d:/Backend dasturlash/Damastic/apps/mobile/lib/features/main/main_screen.dart#L6)
+
+Local development note:
+- the root Express demo API now exposes Flutter-compatible REST endpoints on `http://localhost:4000/api`
+- realtime socket events remain part of the NestJS production backend foundation under `apps/backend`
 
 ## Target stack
 
@@ -102,6 +106,32 @@ npm run dev
 Default ports:
 - web: `5173`
 - demo API: `4000`
+
+### Flutter mobile local flow
+
+From repo root:
+
+```bash
+npm run dev
+npm run mobile:doctor
+npm run mobile:bootstrap
+```
+
+Android emulator:
+
+```bash
+cd apps/mobile
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:4000/realtime
+```
+
+iOS simulator:
+
+```bash
+cd apps/mobile
+flutter run --dart-define=API_BASE_URL=http://localhost:4000/api --dart-define=SOCKET_BASE_URL=http://localhost:4000/realtime
+```
+
+The root demo backend is enough for login, profile, queue, routes and payments REST testing. Full realtime verification still requires the NestJS backend.
 
 ### Production backend
 
@@ -217,26 +247,33 @@ Completed:
 - queue geofence service logic
 - payment callback foundation
 - realtime gateway
-- Flutter-ready mobile skeleton
+- Flutter mobile client codebase
+- local demo API adapter for Flutter REST flow
 - docker-compose and setup docs
 
 Verified in this environment:
 - root web build
 - backend TypeScript build
 - Prisma schema validation
+- Flutter doctor
+- mobile wrapper bootstrap
+- Flutter analyze
+- Flutter test
 - git commit and GitHub push
 
 Not fully verified in this environment:
-- Flutter app build
+- Android APK build
+- iOS build
 - Dockerized PostgreSQL runtime
 - full production deployment
 
 ## Known environment constraints during setup
 
 While preparing this repository:
-- `Flutter` CLI was not installed in the environment
+- `Flutter` CLI is installed and working in this environment
+- Android SDK is currently on `C:` with effectively no free space, so NDK installation for Android APK build failed
 - Docker Desktop daemon was not fully available
-- therefore mobile runtime and container runtime could not be fully tested here
+- therefore Android APK packaging and container runtime could not be fully tested here
 
 The codebase is structured so those steps can be completed on a properly configured machine.
 
@@ -250,5 +287,5 @@ The codebase is structured so those steps can be completed on a properly configu
 1. Bring up PostgreSQL and run Prisma push/seed.
 2. Connect real SMS provider.
 3. Implement real Click and Payme signature validation.
-4. Generate full Flutter app from the mobile skeleton.
+4. Free space on the Android SDK drive or move the SDK off `C:` and rerun the mobile Android build.
 5. Deploy backend and database to a production host.

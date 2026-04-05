@@ -209,7 +209,7 @@ class _MainDashboard extends StatelessWidget {
                         Text(
                           controller.isOnline
                               ? "Navbat olish va xarita ko'rish faol."
-                              : "Navbat va GPS oqimlari uchun online holat kerak.",
+                              : 'Navbat va GPS oqimlari uchun online holat kerak.',
                           style: const TextStyle(color: Color(0xFF9FDAC8)),
                         ),
                       ],
@@ -323,8 +323,8 @@ class _MainDashboard extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               controller.driver?.location == null
-                  ? "Navbat olishdan oldin qurilma GPS lokatsiyasi backendga yuborilishi kerak."
-                  : "Oxirgi GPS: ${controller.driver!.location!.lat.toStringAsFixed(5)}, ${controller.driver!.location!.lng.toStringAsFixed(5)}",
+                  ? 'Navbat olishdan oldin qurilma GPS lokatsiyasi backendga yuborilishi kerak.'
+                  : 'Oxirgi GPS: ${controller.driver!.location!.lat.toStringAsFixed(5)}, ${controller.driver!.location!.lng.toStringAsFixed(5)}',
               style: const TextStyle(
                 color: Color(0xFF7FA0D9),
                 fontSize: 12,

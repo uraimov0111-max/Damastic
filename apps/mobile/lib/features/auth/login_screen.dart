@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../core/config/app_config.dart';
 import '../../state/app_controller.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _phoneController = TextEditingController(text: '+998901234567');
+  final _phoneController = TextEditingController();
   final _codeController = TextEditingController();
 
   @override
@@ -131,8 +133,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const Spacer(),
-                        const Text(
-                          'TELEFON RAQAM',
+                        Text(
+                          widget.controller.codeRequested
+                              ? 'SMS KOD'
+                              : 'TELEFON RAQAM',
                           style: TextStyle(
                             color: Color(0xFF6F88B6),
                             fontSize: 12,
@@ -173,14 +177,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                   controller: widget.controller.codeRequested
                                       ? _codeController
                                       : _phoneController,
-                                  keyboardType: TextInputType.phone,
+                                  keyboardType: widget.controller.codeRequested
+                                      ? TextInputType.number
+                                      : TextInputType.phone,
+                                  autofillHints: widget.controller.codeRequested
+                                      ? const [AutofillHints.oneTimeCode]
+                                      : const [AutofillHints.telephoneNumber],
+                                  inputFormatters: widget.controller.codeRequested
+                                      ? [
+                                          FilteringTextInputFormatter.digitsOnly,
+                                          LengthLimitingTextInputFormatter(6),
+                                        ]
+                                      : [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'[\d+]'),
+                                          ),
+                                        ],
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
                                   ),
                                   decoration: InputDecoration(
                                     hintText: widget.controller.codeRequested
-                                        ? '1234'
+                                        ? '123456'
                                         : '90 123 45 67',
                                     border: InputBorder.none,
                                   ),
@@ -190,6 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         if (widget.controller.codeRequested &&
+                            AppConfig.exposeDebugAuthCode &&
                             widget.controller.debugCode != null) ...[
                           const SizedBox(height: 12),
                           Text(
@@ -237,8 +257,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 18),
                         Text(
                           widget.controller.codeRequested
-                              ? 'Kod `POST /api/auth/verify-code` orqali tekshiriladi.'
-                              : 'Telefon `POST /api/auth/send-code` endpointiga yuboriladi.',
+                              ? 'Telefoningizga yuborilgan kodni kiriting.'
+                              : 'Kirish uchun telefon raqamingizni yuboring.',
                           style: const TextStyle(
                             color: Color(0xFF6F88B6),
                             fontSize: 12,

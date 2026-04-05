@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Post, UseGuards } from "@nestjs/common";
 import { CurrentDriver } from "../../common/decorators/current-driver.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { PaymentCallbackDto } from "./dto/payment-callback.dto";
@@ -27,12 +27,18 @@ export class PaymentsController {
   }
 
   @Post("click/callback")
-  clickCallback(@Body() dto: PaymentCallbackDto) {
-    return this.paymentsService.handleCallback("click", dto);
+  clickCallback(
+    @Body() dto: PaymentCallbackDto,
+    @Headers("x-signature") signature?: string,
+  ) {
+    return this.paymentsService.handleCallback("click", dto, signature);
   }
 
   @Post("payme/callback")
-  paymeCallback(@Body() dto: PaymentCallbackDto) {
-    return this.paymentsService.handleCallback("payme", dto);
+  paymeCallback(
+    @Body() dto: PaymentCallbackDto,
+    @Headers("x-signature") signature?: string,
+  ) {
+    return this.paymentsService.handleCallback("payme", dto, signature);
   }
 }

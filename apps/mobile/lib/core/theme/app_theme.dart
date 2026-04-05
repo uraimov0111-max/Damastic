@@ -32,7 +32,7 @@ class AppTheme {
           ),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -42,7 +42,7 @@ class AppTheme {
       navigationBarTheme: const NavigationBarThemeData(
         backgroundColor: Color(0xFF0B1424),
         indicatorColor: Color(0x2212D18E),
-        labelTextStyle: MaterialStatePropertyAll(
+        labelTextStyle: WidgetStatePropertyAll(
           TextStyle(fontWeight: FontWeight.w700),
         ),
       ),

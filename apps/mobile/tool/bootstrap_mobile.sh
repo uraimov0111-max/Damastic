@@ -20,5 +20,7 @@ fi
 flutter pub get
 
 echo "Bootstrap tugadi."
+echo "REST local flow: repo root'da npm run dev orqali http://localhost:4000/api ni ishlating."
+echo "Realtime to'liq tekshiruvi uchun apps/backend dagi NestJS backend kerak bo'ladi."
 echo "Android run uchun: flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:4000/realtime"
 echo "iOS run uchun: flutter run --dart-define=API_BASE_URL=http://localhost:4000/api --dart-define=SOCKET_BASE_URL=http://localhost:4000/realtime"

@@ -1,6 +1,9 @@
 node_modules
+.npm-cache
 dist
 npm-debug.log*
+*.log
+.vercel
 apps/backend/dist
 apps/backend/node_modules
 apps/backend/.env
@@ -9,5 +12,6 @@ apps/mobile/build
 apps/mobile/.flutter-plugins
 apps/mobile/.flutter-plugins-dependencies
 apps/mobile/.packages
+apps/mobile/android/.gradle
 .idea
 .vscode

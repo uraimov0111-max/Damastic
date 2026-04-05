@@ -16,28 +16,34 @@
 ## Nima tayyor
 
 - `lib/` ichida iOS va Android uchun umumiy Flutter ilova kodi tayyor.
+- `android/` va `ios/` host wrapperlari generatsiya qilindi.
 - Backend kontraktlari bilan ishlaydigan servislar yozilgan.
 - Google Maps widget ulash uchun kod qo'shilgan.
 - Queue, payment va realtime oqimlari uchun foundation mavjud.
+- Root Express demo backend Flutter REST oqimi uchun moslashtirilgan.
+- `flutter analyze` va `flutter test` muvaffaqiyatli o'tdi.
 
 ## Nima hali environmentga bog'liq
 
-- `android/` va `ios/` native project wrapper fayllari repo ichida generatsiya qilinmagan.
-- Bu muhitda Flutter SDK o'rnatilmagan, shu sabab `flutter create`, `flutter pub get` va `flutter run` bu yerda ishlatilmadi.
+- Android debug APK build uchun Gradle NDK paketini o'rnatishi kerak.
+- Android SDK `C:` diskda joylashgan va u yerda bo'sh joy qolmagani sabab NDK install yiqilmoqda.
 - iOS build faqat macOS + Xcode muhitida yakuniy verifikatsiya qilinadi.
 - Google Maps uchun Android va iOS native API key konfiguratsiyasi hali berilmagan.
 
-## Nega native wrapperlar commit qilinmadi
+## Joriy xulosa
 
-`android/` va `ios/` papkalardagi fayllar Flutter SDK versiyasiga bog'liq generatsiya qilingan host wrapperlardir. Bu muhitda Flutter yo'q bo'lgani uchun ularni ishonchli generatsiya qilib tekshirishning iloji bo'lmadi.
-
-Shuning uchun repo ichiga qo'shilgan eng to'g'ri yechim:
-
-- to'liq `lib/` mobil kod bazasi
-- platformalarni avtomatik yaratadigan bootstrap scriptlar
-- iOS/Android setup hujjati
+Mobil kod bazasi Flutter 3.41 bilan statik tekshiruvdan o'tdi va host wrapperlar yaratildi. Android builddagi joriy blocker repository ichida emas, balki lokal Android SDK storage holatida.
 
 ## To'liq iOS va Android project wrapperlarini yaratish
+
+Repo root'dan:
+
+```powershell
+npm run mobile:doctor
+npm run mobile:bootstrap
+```
+
+Yoki `apps/mobile` ichidan:
 
 Windows PowerShell:
 
@@ -71,3 +77,9 @@ flutter run --dart-define=API_BASE_URL=http://localhost:4000/api --dart-define=S
 ```
 
 Real qurilmada `localhost` o'rniga backend serverning LAN IP manzilini bering.
+
+Izoh:
+
+- `http://localhost:4000/api` dagi root demo backend login, route, queue, profile va payment REST oqimlarini lokal sinash uchun yetarli
+- realtime socket oqimlarini to'liq tekshirish uchun `apps/backend` dagi NestJS backend kerak bo'ladi
+- Android APK build uchun Android SDK joylashgan diskda kamida bir necha GB bo'sh joy bo'lishi kerak

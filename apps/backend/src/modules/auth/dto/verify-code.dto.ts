@@ -4,7 +4,7 @@ export class VerifyCodeDto {
   @IsPhoneNumber("UZ")
   phone!: string;
 
-  @Length(4, 6)
+  @Length(4, 8)
   @Matches(/^\d+$/)
   code!: string;
 }

@@ -14,13 +14,14 @@ class SocketService {
 
   bool get isConnected => _socket?.connected ?? false;
 
-  void connect() {
+  void connect(String token) {
     disconnect();
 
     _socket = io.io(
       AppConfig.socketBaseUrl,
       io.OptionBuilder()
           .setTransports(['websocket'])
+          .setAuth({'token': token})
           .disableAutoConnect()
           .enableForceNew()
           .build(),

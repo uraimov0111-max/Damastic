@@ -134,7 +134,7 @@ class _EmptyQueueState extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
       ),
       child: const Text(
-        "Tanlangan punkt uchun aktiv navbat topilmadi.",
+        'Tanlangan punkt uchun aktiv navbat topilmadi.',
         style: TextStyle(color: Color(0xFF7FA0D9)),
       ),
     );

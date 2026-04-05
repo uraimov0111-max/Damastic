@@ -17,10 +17,14 @@ class QrScreen extends StatelessWidget {
       builder: (context, _) {
         final paymentLink = controller.paymentLink;
         final paymentSummary = controller.paymentSummary;
+        final cashSummary = controller.cashSummary;
 
         return SafeArea(
           child: RefreshIndicator(
-            onRefresh: controller.loadPaymentData,
+            onRefresh: () async {
+              await controller.loadPaymentData();
+              await controller.loadCashSummary();
+            },
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -88,16 +92,86 @@ class QrScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Naqd tushum',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Yo'lovchi naqd to'lasa, passenger count kiriting.",
+                  style: TextStyle(color: Color(0xFF7FA0D9)),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _PassengerButton(controller: controller, count: 1),
+                    _PassengerButton(controller: controller, count: 2),
+                    _PassengerButton(controller: controller, count: 3),
+                    _PassengerButton(controller: controller, count: 4),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _MetricCard(
+                      label: 'Naqd yozuv',
+                      value: '${cashSummary?.entriesToday ?? 0}',
+                    ),
+                    _MetricCard(
+                      label: 'Yo\'lovchi',
+                      value: '${cashSummary?.passengersToday ?? 0}',
+                    ),
+                    _MetricCard(
+                      label: 'Naqd bugun',
+                      value: '${cashSummary?.cashToday ?? 0} so\'m',
+                    ),
+                    _MetricCard(
+                      label: 'Wallet',
+                      value: '${cashSummary?.walletBalance ?? 0} so\'m',
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 18),
                 FilledButton.tonal(
-                  onPressed: controller.busy ? null : controller.loadPaymentData,
-                  child: const Text("To'lov ma'lumotini yangilash"),
+                  onPressed: controller.busy
+                      ? null
+                      : () async {
+                          await controller.loadPaymentData();
+                          await controller.loadCashSummary();
+                        },
+                  child: const Text("To'lov va naqd ma'lumotini yangilash"),
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _PassengerButton extends StatelessWidget {
+  const _PassengerButton({
+    required this.controller,
+    required this.count,
+  });
+
+  final int count;
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 160,
+      child: FilledButton(
+        onPressed: controller.busy ? null : () => controller.recordCashEntry(count),
+        child: Text('$count ta yo\'lovchi'),
+      ),
     );
   }
 }
