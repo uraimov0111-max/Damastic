@@ -21,6 +21,11 @@ export class SuperAdminController {
     return this.adminConsoleService.listAlliances();
   }
 
+  @Get("sms/status")
+  smsStatus() {
+    return this.adminConsoleService.getSmsProviderStatus();
+  }
+
   @Post("alliances")
   createAlliance(@Body() dto: CreateAllianceDto) {
     return this.adminConsoleService.createAlliance(dto);

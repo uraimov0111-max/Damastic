@@ -1,5 +1,6 @@
 node_modules
 .npm-cache
+.gradle-user-home
 dist
 npm-debug.log*
 *.log
@@ -15,3 +16,4 @@ apps/mobile/.packages
 apps/mobile/android/.gradle
 .idea
 .vscode
+tmp_*

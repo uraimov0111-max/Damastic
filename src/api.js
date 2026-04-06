@@ -1,5 +1,5 @@
 const TOKEN_KEY = "damastic-admin-token";
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/$/, "");
 
 function getToken() {
   return window.localStorage.getItem(TOKEN_KEY);
@@ -83,6 +83,9 @@ export const adminApi = {
     alliances() {
       return request("/api/admin/super/alliances");
     },
+    smsStatus() {
+      return request("/api/admin/super/sms/status");
+    },
     createAlliance(payload) {
       return request("/api/admin/super/alliances", {
         method: "POST",
@@ -123,6 +126,9 @@ export const adminApi = {
     },
     liveQueues() {
       return request("/api/admin/alliance/queues/live");
+    },
+    smsStatus() {
+      return request("/api/admin/alliance/sms/status");
     },
     payments() {
       return request("/api/admin/alliance/payments");

@@ -59,6 +59,11 @@ export class AllianceAdminController {
     return this.adminConsoleService.getAlliancePayments(admin);
   }
 
+  @Get("sms/status")
+  smsStatus() {
+    return this.adminConsoleService.getSmsProviderStatus();
+  }
+
   @Get("cash-entries")
   cashEntries(@CurrentAdmin() admin: any) {
     return this.adminConsoleService.getAllianceCashEntries(admin);

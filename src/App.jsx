@@ -10,8 +10,10 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [booting, setBooting] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [smsLoading, setSmsLoading] = useState(false);
   const [notice, setNotice] = useState(null);
   const [tab, setTab] = useState("overview");
+  const [smsStatus, setSmsStatus] = useState(null);
   const [superState, setSuperState] = useState({
     overview: null,
     alliances: [],
@@ -78,6 +80,7 @@ export default function App() {
     }
 
     void refreshRoleData(session.admin.role);
+    void refreshSmsStatus(session.admin.role, { silent: true });
 
     if (session.admin.role !== "alliance_admin") {
       return undefined;
@@ -89,6 +92,41 @@ export default function App() {
 
     return () => window.clearInterval(timer);
   }, [session]);
+
+  async function refreshSmsStatus(role = session?.admin.role, options = {}) {
+    if (!role) {
+      return;
+    }
+
+    setSmsLoading(true);
+
+    try {
+      const payload =
+        role === "super_admin"
+          ? await adminApi.super.smsStatus()
+          : await adminApi.alliance.smsStatus();
+
+      setSmsStatus(payload);
+    } catch (error) {
+      setSmsStatus({
+        provider: "eskiz",
+        mode: "live",
+        sender: null,
+        tokenSource: null,
+        userName: null,
+        userEmail: null,
+        balance: null,
+        checkedAt: new Date().toISOString(),
+        error: error.message,
+      });
+
+      if (!options.silent) {
+        setNotice({ type: "error", text: error.message });
+      }
+    } finally {
+      setSmsLoading(false);
+    }
+  }
 
   async function refreshRoleData(role = session?.admin.role, options = {}) {
     if (!role) {
@@ -164,6 +202,7 @@ export default function App() {
     authStorage.clearToken();
     setSession(null);
     setNotice(null);
+    setSmsStatus(null);
     setTab("overview");
   }
 
@@ -404,6 +443,9 @@ export default function App() {
               overview={superState.overview}
               alliances={superState.alliances}
               loading={loading}
+              smsStatus={smsStatus}
+              smsLoading={smsLoading}
+              onRefreshSmsStatus={() => refreshSmsStatus("super_admin")}
               allianceForm={allianceForm}
               onAllianceFormChange={(field, value) =>
                 setAllianceForm((current) => ({ ...current, [field]: value }))
@@ -415,6 +457,9 @@ export default function App() {
               tab={tab}
               setTab={setTab}
               dashboard={allianceState.dashboard}
+              smsStatus={smsStatus}
+              smsLoading={smsLoading}
+              onRefreshSmsStatus={() => refreshSmsStatus("alliance_admin")}
               drivers={allianceState.drivers}
               vehicles={allianceState.vehicles}
               routes={allianceState.routes}

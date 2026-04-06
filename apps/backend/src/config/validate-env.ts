@@ -85,6 +85,11 @@ export function validateEnv(env: EnvInput) {
     SMS_PASSWORD: asString(env.SMS_PASSWORD),
     SMS_BEARER_TOKEN: asString(env.SMS_BEARER_TOKEN),
     SMS_FROM: asString(env.SMS_FROM, "4546"),
+    SMS_TEST_MODE: asBoolean(env, "SMS_TEST_MODE", false),
+    SMS_TEST_FALLBACK_MESSAGE: asString(
+      env.SMS_TEST_FALLBACK_MESSAGE,
+      "Bu Eskiz dan test",
+    ),
     SMS_MESSAGE_TEMPLATE: asString(
       env.SMS_MESSAGE_TEMPLATE,
       "Damastic tasdiqlash kodi: {code}. Kod {minutes} daqiqa amal qiladi.",
@@ -131,6 +136,10 @@ export function validateEnv(env: EnvInput) {
 
     if (!normalized.SMS_FROM) {
       throw new Error("SMS_FROM must be configured for Eskiz");
+    }
+
+    if (normalized.SMS_TEST_MODE && !normalized.SMS_TEST_FALLBACK_MESSAGE) {
+      throw new Error("SMS_TEST_FALLBACK_MESSAGE must be configured in SMS test mode");
     }
   }
 

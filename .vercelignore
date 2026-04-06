@@ -1,0 +1,14 @@
+.git
+.github
+.npm-cache
+node_modules
+dist
+apps
+backend
+infra
+damastic-app.jsx
+DAMASTIC_TARGET_ARCHITECTURE.md
+PRODUCTION_SETUP.md
+LICENSE
+*.log
+.railway

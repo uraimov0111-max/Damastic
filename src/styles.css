@@ -178,6 +178,37 @@ select {
   font-weight: 700;
 }
 
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-pill-ok {
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+}
+
+.status-pill-console {
+  background: rgba(29, 78, 216, 0.12);
+  color: #1d4ed8;
+}
+
+.status-pill-error {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+.status-pill-pending {
+  background: rgba(22, 35, 59, 0.08);
+  color: #31405e;
+}
+
 .sidebar-nav,
 .tabbar {
   display: flex;
@@ -246,6 +277,10 @@ select {
 .notice-error {
   background: rgba(220, 38, 38, 0.1);
   color: #b91c1c;
+}
+
+.notice-inline {
+  margin-bottom: 0;
 }
 
 .button {

@@ -29,7 +29,7 @@ class AppConfig {
           : _defaultSocketBaseUrl;
 
   static bool get exposeDebugAuthCode =>
-      !kReleaseMode && _configuredExposeDebugAuthCode;
+      _configuredExposeDebugAuthCode;
 
   static String? get validationError {
     if (!kReleaseMode) {

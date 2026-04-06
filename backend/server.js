@@ -29,6 +29,87 @@ const DEMO_ROUTE_POINTS = [
   },
 ];
 
+// Add Eskiz Integration Functions
+let eskizToken = null;
+let eskizTokenExpires = 0;
+
+async function getEskizToken() {
+  const email = process.env.ESKIZ_EMAIL;
+  const password = process.env.ESKIZ_PASSWORD;
+  if (!email || !password) {
+    console.warn("Eskiz credentials missing in ENV. Falling back to dev mode OTP.");
+    return null;
+  }
+
+  if (eskizToken && Date.now() < eskizTokenExpires) {
+    return eskizToken;
+  }
+
+  const params = new URLSearchParams();
+  params.append("email", email);
+  params.append("password", password);
+
+  try {
+    const res = await fetch("https://notify.eskiz.uz/api/auth/login", {
+      method: "POST",
+      body: params
+    });
+
+    if (!res.ok) {
+       console.error("Eskiz login xatosi:", await res.text());
+       return null;
+    }
+    const data = await res.json();
+    eskizToken = data.data.token;
+    eskizTokenExpires = Date.now() + 24 * 60 * 60 * 1000;
+    return eskizToken;
+  } catch (err) {
+    console.error("Eskiz xizmati bilan ulanishda xatolik:", err);
+    return null;
+  }
+}
+
+async function sendEskizSms(phone, message) {
+  const token = await getEskizToken();
+  if (!token) return false;
+
+  const cleanPhone = phone.replace(/\D/g, "");
+
+  const params = new URLSearchParams();
+  params.append("mobile_phone", cleanPhone);
+  params.append("message", message);
+  params.append("from", "4546");
+
+  try {
+    let res = await fetch("https://notify.eskiz.uz/api/message/sms/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      },
+      body: params
+    });
+
+    if (res.status === 401) {
+      eskizToken = null;
+      const newToken = await getEskizToken();
+      if (!newToken) return false;
+      res = await fetch("https://notify.eskiz.uz/api/message/sms/send", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${newToken}`
+        },
+        body: params
+      });
+    }
+
+    const data = await res.json();
+    return res.ok || data.status === 'success' || data.status === 'waiting';
+  } catch (err) {
+    console.error("Eskiz CMS orqali yuborishda xatolik:", err);
+    return false;
+  }
+}
+
 const app = express();
 
 app.use(cors());
@@ -320,14 +401,25 @@ app.post("/api/auth/send-code", async (request, response) => {
   const store = await readStore();
   store.auth.lastPhone = phone;
   store.auth.sessionId = `session-${Date.now()}`;
+
+  const isDev = !process.env.ESKIZ_EMAIL || process.env.NODE_ENV === "development";
+  const demoCode = isDev ? "1234" : Math.floor(1000 + Math.random() * 9000).toString();
+  store.auth.demoCode = demoCode;
+
+  let smsSent = false;
+  if (!isDev) {
+    smsSent = await sendEskizSms(phone, `App tasdiqlash kodi: ${demoCode}`);
+  }
+
   await writeStore(store);
 
   response.json({
     sessionId: store.auth.sessionId,
-    demoCode: store.auth.demoCode,
-    debugCode: store.auth.demoCode,
+    demoCode: isDev ? demoCode : undefined,
+    debugCode: isDev ? demoCode : undefined,
     success: true,
     expiresIn: 120,
+    smsSent
   });
 });
 

@@ -1,12 +1,16 @@
 import React from "react";
 import { ALLIANCE_TABS, formatDate, money } from "../admin-utils.js";
 import { RouteDraftMap } from "./route-map.jsx";
+import { SmsStatusCard } from "./sms-status-card.jsx";
 import { Button, Card, DataTable, EmptyState, Field, StatGrid } from "./ui.jsx";
 
 export function AllianceAdminView({
   tab,
   setTab,
   dashboard,
+  smsStatus,
+  smsLoading,
+  onRefreshSmsStatus,
   drivers,
   vehicles,
   routes,
@@ -55,6 +59,12 @@ export function AllianceAdminView({
               { label: "Naqd bugun", value: money(dashboard?.cashToday ?? 0) },
               { label: "Wallet", value: money(dashboard?.walletTotal ?? 0) },
             ]}
+          />
+
+          <SmsStatusCard
+            status={smsStatus}
+            loading={smsLoading}
+            onRefresh={onRefreshSmsStatus}
           />
 
           <div className="split-grid">

@@ -7,6 +7,7 @@ import { randomBytes } from "crypto";
 import { PrismaService } from "../../database/prisma.service";
 import { AuthenticatedAdmin } from "../../common/decorators/current-admin.decorator";
 import { hashPassword } from "../../common/security/password";
+import { SmsService } from "../auth/sms.service";
 import { CreateAllianceDto } from "./dto/create-alliance.dto";
 import { CreateAllianceDriverDto } from "./dto/create-alliance-driver.dto";
 import { CreateAllianceRouteDto } from "./dto/create-alliance-route.dto";
@@ -14,7 +15,10 @@ import { CreateAllianceVehicleDto } from "./dto/create-alliance-vehicle.dto";
 
 @Injectable()
 export class AdminConsoleService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly smsService: SmsService,
+  ) {}
 
   async getSuperOverview() {
     const since = this.startOfToday();
@@ -116,6 +120,10 @@ export class AdminConsoleService {
       slug: alliance.slug,
       status: alliance.status,
     };
+  }
+
+  async getSmsProviderStatus() {
+    return this.smsService.getProviderStatus();
   }
 
   async getAllianceDashboard(admin: AuthenticatedAdmin) {

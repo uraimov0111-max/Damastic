@@ -93,6 +93,12 @@ iOS simulator uchun:
 flutter run --dart-define=API_BASE_URL=http://localhost:4000/api --dart-define=SOCKET_BASE_URL=http://localhost:4000/realtime
 ```
 
+Eskiz akkaunti test rejimda bo'lsa va backend `AUTH_EXPOSE_DEBUG_CODE=true` bo'lsa, test APK/debug build ichida OTP kodni ko'rsatish uchun qo'shimcha flag bering:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000/api --dart-define=SOCKET_BASE_URL=http://10.0.2.2:4000/realtime --dart-define=EXPOSE_DEBUG_AUTH_CODE=true
+```
+
 Real qurilmada `localhost` yoki `10.0.2.2` o'rniga serverning lokal IP manzilini kiriting.
 
 Root demo backend bilan lokal ishlash uchun shu URLlar yetarli.

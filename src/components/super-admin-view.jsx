@@ -1,11 +1,15 @@
 import React from "react";
 import { Card, Button, DataTable, Field, StatGrid } from "./ui.jsx";
 import { money } from "../admin-utils.js";
+import { SmsStatusCard } from "./sms-status-card.jsx";
 
 export function SuperAdminView({
   overview,
   alliances,
   loading,
+  smsStatus,
+  smsLoading,
+  onRefreshSmsStatus,
   allianceForm,
   onAllianceFormChange,
   onCreateAlliance,
@@ -21,6 +25,12 @@ export function SuperAdminView({
           { label: "Naqd bugun", value: money(overview?.cashToday ?? 0) },
           { label: "Wallet jami", value: money(overview?.walletTotal ?? 0) },
         ]}
+      />
+
+      <SmsStatusCard
+        status={smsStatus}
+        loading={smsLoading}
+        onRefresh={onRefreshSmsStatus}
       />
 
       <div className="split-grid">

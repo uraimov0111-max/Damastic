@@ -133,7 +133,12 @@ class AppController extends ChangeNotifier {
       final payload = await _apiClient.sendCode(normalizedPhone);
       _debugCode = payload['debugCode']?.toString();
       _codeRequested = true;
-      _infoMessage = 'SMS kod yuborildi.';
+      _infoMessage =
+          (_debugCode != null &&
+                  _debugCode!.isNotEmpty &&
+                  AppConfig.exposeDebugAuthCode)
+              ? 'SMS test rejimida yuborildi. Kod ekranda ko‘rsatiladi.'
+              : 'SMS kod yuborildi.';
     } catch (error) {
       _errorMessage = _resolveError(error);
     } finally {

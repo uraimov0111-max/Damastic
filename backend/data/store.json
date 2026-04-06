@@ -1,7 +1,7 @@
 {
   "auth": {
     "demoCode": "1234",
-    "sessionId": "session-1775160448059",
+    "sessionId": "session-1775187102025",
     "lastPhone": "+998 90 123 45 67"
   },
   "driver": {
@@ -58,7 +58,7 @@
     ]
   },
   "queue": {
-    "joined": true,
+    "joined": false,
     "entries": [
       {
         "id": "d1",
@@ -80,13 +80,6 @@
         "car": "30B 891 KL",
         "pos": 3,
         "isYou": false
-      },
-      {
-        "id": "you",
-        "name": "Abdullayev Ulugbek",
-        "car": "10A 111 UZ",
-        "isYou": true,
-        "pos": 4
       }
     ]
   },
@@ -128,6 +121,14 @@
       "Click"
     ],
     "transactions": [
+      {
+        "transactionId": "TXN-2365",
+        "amount": 5000,
+        "via": "Payme",
+        "status": "success",
+        "time": "08:31",
+        "createdAt": "2026-04-03T03:31:57.902Z"
+      },
       {
         "transactionId": "TXN-5140",
         "amount": 5000,
