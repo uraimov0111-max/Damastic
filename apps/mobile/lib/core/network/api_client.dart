@@ -46,12 +46,13 @@ class ApiClient {
     return ensureMap(response.data);
   }
 
-  Future<AuthSession> verifyCode(String phone, String code) async {
+  Future<AuthSession> verifyCode({String? phone, String? code, String? idToken}) async {
     final response = await _dio.post(
       '/auth/verify-code',
       data: {
-        'phone': phone,
-        'code': code,
+        if (phone != null) 'phone': phone,
+        if (code != null) 'code': code,
+        if (idToken != null) 'idToken': idToken,
       },
     );
 

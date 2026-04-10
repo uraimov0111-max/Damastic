@@ -6,6 +6,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 val keystoreProperties = Properties()
@@ -20,7 +21,7 @@ if (hasReleaseSigning) {
 }
 
 android {
-    namespace = "uz.damastic.damastic_mobile"
+    namespace = "com.Damastic_mobile"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,7 +35,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "uz.damastic.damastic_mobile"
+        applicationId = "com.Damastic_mobile"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -70,4 +71,10 @@ android {
 
 flutter {
     source = "../.."
+}
+
+
+dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
+    implementation("com.google.firebase:firebase-analytics")
 }

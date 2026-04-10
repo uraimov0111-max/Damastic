@@ -1,5 +1,19 @@
 import { useState, useEffect, useRef } from "react";
+import { initializeApp } from "firebase/app";
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 
+const firebaseConfig = {
+  apiKey: "AIzaSyBiAsz4GbVedPvQgziWsKDbR9ej18nj9Oo",
+  authDomain: "damastic-8bb8b.firebaseapp.com",
+  projectId: "damastic-8bb8b",
+  storageBucket: "damastic-8bb8b.firebasestorage.app",
+  messagingSenderId: "801898641235",
+  appId: "1:801898641235:web:43e8c66aa32b0818ea53a6",
+  measurementId: "G-GWTEZ3NF75"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const C = {
   bg: "#080C16",
   surface: "#0E1420",
@@ -233,23 +247,79 @@ function Header({ status, driverName }) {
 function LoginScreen({ onNext }) {
   const [step, setStep] = useState("phone");
   const [phone, setPhone] = useState("+998 ");
-  const [code, setCode] = useState(["","","",""]);
+  const [code, setCode] = useState(["","","","","",""]);
   const [loading, setLoading] = useState(false);
   const [dots, setDots] = useState(0);
-  useEffect(()=>{
+  const [confirmationResult, setConfirmationResult] = useState(null);
+
+  useEffect(() => {
     if(!loading) return;
     const t=setInterval(()=>setDots(p=>(p+1)%4),400);
     return()=>clearInterval(t);
   },[loading]);
 
-  function send() {
+  useEffect(() => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
+        'size': 'invisible',
+        'callback': (response) => {}
+      });
+    }
+  }, []);
+
+  async function send() {
     setLoading(true);
-    setTimeout(()=>{ setLoading(false); setStep("code"); },1800);
+    const normalized = phone.replace(/\D/g, "");
+    if (normalized === "998000000000") {
+      setTimeout(() => { setLoading(false); setStep("code"); }, 1800);
+      return;
+    }
+
+    const realPhone = normalized.startsWith("998") ? "+" + normalized : "+998" + normalized;
+    try {
+      const appVerifier = window.recaptchaVerifier;
+      const res = await signInWithPhoneNumber(auth, realPhone, appVerifier);
+      setConfirmationResult(res);
+      setStep("code");
+    } catch (e) {
+      console.error(e);
+      alert("SMS yuborishda xatolik: " + e.message);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  async function verifyFirebaseCode(fullCode) {
+    if (phone.replace(/\D/g, "") === "998000000000") {
+      onNext();
+      return;
+    }
+    if (!confirmationResult) return;
+    try {
+      setLoading(true);
+      const result = await confirmationResult.confirm(fullCode);
+      const idToken = await result.user.getIdToken();
+      // Muvaffaqiyatli!
+      onNext();
+    } catch (e) {
+      alert("Kod xato yoki eskirgan: " + e.message);
+      setCode(["","","","","",""]);
+      document.getElementById("c-0")?.focus();
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleCode(v,i) {
     const nc=[...code]; nc[i]=v.slice(-1); setCode(nc);
-    if(v&&i<3) document.getElementById(`c-${i+1}`)?.focus();
-    if(nc.every(c=>c!=="")&&i===3) setTimeout(onNext,500);
+    if(v&&i<5) document.getElementById(`c-${i+1}`)?.focus();
+    
+    // Check if fully entered
+    const isFull = nc.every((c, idx) => (idx === i ? v.slice(-1) : c) !== "");
+    if(isFull && i===5) {
+      const fullCode = nc.map((c, idx) => idx === i ? v.slice(-1) : c).join("");
+      verifyFirebaseCode(fullCode);
+    }
   }
 
   return (
@@ -274,7 +344,7 @@ function LoginScreen({ onNext }) {
               style={{background:"none",border:"none",color:C.text,fontSize:16,fontFamily:"monospace",flex:1,outline:"none"}}
               placeholder="+998 XX XXX XX XX"/>
           </div>
-          <button onClick={send} disabled={loading} style={{
+          <button id="send-code-btn" onClick={send} disabled={loading} style={{
             background:loading?C.card:"linear-gradient(135deg,#00D48A,#00A870)",
             border:"none",borderRadius:12,padding:"15px",color:loading?C.accent:"#001A0E",
             fontSize:13,fontWeight:700,fontFamily:"monospace",letterSpacing:1,cursor:"pointer",
@@ -288,17 +358,17 @@ function LoginScreen({ onNext }) {
           <div style={{marginBottom:8,color:C.sub,fontSize:10,letterSpacing:1,fontFamily:"monospace",textAlign:"center"}}>
             SMS KOD • <span style={{color:C.accent}}>{phone}</span>
           </div>
-          <div style={{display:"flex",gap:12,marginBottom:22,justifyContent:"center"}}>
+          <div style={{display:"flex",gap:8,marginBottom:22,justifyContent:"center"}}>
             {code.map((c,i)=>(
               <input key={i} id={`c-${i}`} value={c} onChange={e=>handleCode(e.target.value,i)} maxLength={1}
                 style={{
-                  width:56,height:56,background:c?C.accentDim:C.card,
-                  border:`2px solid ${c?C.accent:C.border}`,borderRadius:12,
-                  color:C.text,fontSize:26,fontFamily:"monospace",textAlign:"center",outline:"none",transition:"all 0.2s",
+                  width:44,height:48,background:c?C.accentDim:C.card,
+                  border:`2px solid ${c?C.accent:C.border}`,borderRadius:10,
+                  color:C.text,fontSize:22,fontFamily:"monospace",textAlign:"center",outline:"none",transition:"all 0.2s",
                 }}/>
             ))}
           </div>
-          <div style={{color:C.sub,fontSize:10,textAlign:"center",fontFamily:"monospace"}}>Demo uchun: <span style={{color:C.accent}}>1 2 3 4</span></div>
+          <div style={{color:C.sub,fontSize:10,textAlign:"center",fontFamily:"monospace"}}>Demo uchun: <span style={{color:C.accent}}>000 000 0000 raqami</span></div>
         </>
       )}
     </div>

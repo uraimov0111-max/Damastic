@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "801898641235",
+    "project_id": "damastic-8bb8b",
+    "storage_bucket": "damastic-8bb8b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:801898641235:android:a95bb2cac1aa5be6ea53a6",
+        "android_client_info": {
+          "package_name": "com.Damastic_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUc6c-mTuspjmJDlPhUc-LnYg1DXtr70o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

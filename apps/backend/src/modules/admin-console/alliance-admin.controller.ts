@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from "@nestjs/common";
 import { AdminRoles } from "../../common/decorators/admin-roles.decorator";
 import { CurrentAdmin } from "../../common/decorators/current-admin.decorator";
 import { AdminAuthGuard } from "../../common/guards/admin-auth.guard";
@@ -27,6 +27,11 @@ export class AllianceAdminController {
   @Post("drivers")
   createDriver(@CurrentAdmin() admin: any, @Body() dto: CreateAllianceDriverDto) {
     return this.adminConsoleService.createAllianceDriver(admin, dto);
+  }
+
+  @Delete("drivers/:id")
+  deleteDriver(@CurrentAdmin() admin: any, @Param("id") id: string) {
+    return this.adminConsoleService.deleteAllianceDriver(admin, id);
   }
 
   @Get("vehicles")

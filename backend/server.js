@@ -29,84 +29,19 @@ const DEMO_ROUTE_POINTS = [
   },
 ];
 
-// Add Eskiz Integration Functions
-let eskizToken = null;
-let eskizTokenExpires = 0;
+import admin from "firebase-admin";
 
-async function getEskizToken() {
-  const email = process.env.ESKIZ_EMAIL;
-  const password = process.env.ESKIZ_PASSWORD;
-  if (!email || !password) {
-    console.warn("Eskiz credentials missing in ENV. Falling back to dev mode OTP.");
-    return null;
-  }
+admin.initializeApp({
+  projectId: "damastic-8bb8b",
+});
 
-  if (eskizToken && Date.now() < eskizTokenExpires) {
-    return eskizToken;
-  }
-
-  const params = new URLSearchParams();
-  params.append("email", email);
-  params.append("password", password);
-
+async function verifyFirebaseToken(idToken) {
   try {
-    const res = await fetch("https://notify.eskiz.uz/api/auth/login", {
-      method: "POST",
-      body: params
-    });
-
-    if (!res.ok) {
-       console.error("Eskiz login xatosi:", await res.text());
-       return null;
-    }
-    const data = await res.json();
-    eskizToken = data.data.token;
-    eskizTokenExpires = Date.now() + 24 * 60 * 60 * 1000;
-    return eskizToken;
-  } catch (err) {
-    console.error("Eskiz xizmati bilan ulanishda xatolik:", err);
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    return decodedToken.phone_number;
+  } catch (error) {
+    console.error("Firebase token tasdiqlashda xatolik:", error);
     return null;
-  }
-}
-
-async function sendEskizSms(phone, message) {
-  const token = await getEskizToken();
-  if (!token) return false;
-
-  const cleanPhone = phone.replace(/\D/g, "");
-
-  const params = new URLSearchParams();
-  params.append("mobile_phone", cleanPhone);
-  params.append("message", message);
-  params.append("from", "4546");
-
-  try {
-    let res = await fetch("https://notify.eskiz.uz/api/message/sms/send", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`
-      },
-      body: params
-    });
-
-    if (res.status === 401) {
-      eskizToken = null;
-      const newToken = await getEskizToken();
-      if (!newToken) return false;
-      res = await fetch("https://notify.eskiz.uz/api/message/sms/send", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${newToken}`
-        },
-        body: params
-      });
-    }
-
-    const data = await res.json();
-    return res.ok || data.status === 'success' || data.status === 'waiting';
-  } catch (err) {
-    console.error("Eskiz CMS orqali yuborishda xatolik:", err);
-    return false;
   }
 }
 
@@ -391,51 +326,34 @@ app.get("/api/health", (_request, response) => {
 });
 
 app.post("/api/auth/send-code", async (request, response) => {
-  const phone = normalizePhone(request.body.phone);
-
-  if (phone.length < 7) {
-    response.status(400).json({ error: "Telefon raqam notogri kiritildi" });
-    return;
-  }
-
-  const store = await readStore();
-  store.auth.lastPhone = phone;
-  store.auth.sessionId = `session-${Date.now()}`;
-
-  const isDev = !process.env.ESKIZ_EMAIL || process.env.NODE_ENV === "development";
-  const demoCode = isDev ? "1234" : Math.floor(1000 + Math.random() * 9000).toString();
-  store.auth.demoCode = demoCode;
-
-  let smsSent = false;
-  if (!isDev) {
-    smsSent = await sendEskizSms(phone, `App tasdiqlash kodi: ${demoCode}`);
-  }
-
-  await writeStore(store);
-
-  response.json({
-    sessionId: store.auth.sessionId,
-    demoCode: isDev ? demoCode : undefined,
-    debugCode: isDev ? demoCode : undefined,
-    success: true,
-    expiresIn: 120,
-    smsSent
-  });
+  // Buni client o'zi bajaradi (Firebase qismi), lekin compatibility uchun saqlaymiz yoki empty qilamiz
+  response.json({ success: true, message: "Client calls Firebase SDK directly" });
 });
 
 app.post("/api/auth/verify", async (request, response) => {
-  const { code, sessionId } = request.body;
-  const phone = normalizePhone(request.body.phone);
+  const { idToken, code, sessionId } = request.body;
   const store = await readStore();
 
-  if (sessionId !== store.auth.sessionId) {
-    response.status(400).json({ error: "Sessiya muddati tugagan. Qayta urinib koring" });
-    return;
-  }
+  const isDev = process.env.NODE_ENV === "development";
+  let phone = normalizePhone(request.body.phone);
 
-  if (String(code) !== String(store.auth.demoCode)) {
-    response.status(400).json({ error: "SMS kodi notogri" });
-    return;
+  if (!isDev) {
+    if (!idToken) {
+      response.status(400).json({ error: "Firebase token yetishmayapti" });
+      return;
+    }
+
+    const verifiedPhone = await verifyFirebaseToken(idToken);
+    if (!verifiedPhone) {
+      response.status(401).json({ error: "Token yaroqsiz" });
+      return;
+    }
+    phone = verifiedPhone;
+  } else {
+    if (String(code) !== "1234") {
+      response.status(400).json({ error: "SMS kodi notogri" });
+      return;
+    }
   }
 
   if (phone) {
@@ -451,20 +369,29 @@ app.post("/api/auth/verify", async (request, response) => {
 });
 
 app.post("/api/auth/verify-code", async (request, response) => {
-  const { code, sessionId } = request.body;
-  const phone = normalizePhone(request.body.phone);
+  const { idToken, code } = request.body;
+  let phone = normalizePhone(request.body.phone);
   const store = await readStore();
 
-  if (sessionId && sessionId !== store.auth.sessionId) {
-    response
-      .status(400)
-      .json({ error: "Sessiya muddati tugagan. Qayta urinib koring" });
-    return;
-  }
+  const isDev = process.env.NODE_ENV === "development";
 
-  if (String(code) !== String(store.auth.demoCode)) {
-    response.status(400).json({ error: "SMS kodi notogri" });
-    return;
+  if (!isDev) {
+    if (!idToken) {
+      response.status(400).json({ error: "Firebase token yetishmayapti" });
+      return;
+    }
+
+    const verifiedPhone = await verifyFirebaseToken(idToken);
+    if (!verifiedPhone) {
+      response.status(401).json({ error: "Token yaroqsiz" });
+      return;
+    }
+    phone = verifiedPhone;
+  } else {
+    if (String(code) !== "1234") {
+      response.status(400).json({ error: "SMS kodi notogri" });
+      return;
+    }
   }
 
   if (phone) {

@@ -106,6 +106,11 @@ export const adminApi = {
         body: JSON.stringify(payload),
       });
     },
+    deleteDriver(id) {
+      return request(`/api/admin/alliance/drivers/${id}`, {
+        method: "DELETE",
+      });
+    },
     vehicles() {
       return request("/api/admin/alliance/vehicles");
     },

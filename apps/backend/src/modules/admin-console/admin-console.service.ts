@@ -275,7 +275,7 @@ export class AdminConsoleService {
           vehicleId,
           routeId,
           name: dto.name.trim(),
-          phone: dto.phone.trim(),
+          phone: this.normalizePhone(dto.phone),
           carNumber: vehicle.plateNumber,
           cardNumber: dto.cardNumber?.trim() || null,
           paymentSlug,
@@ -301,6 +301,24 @@ export class AdminConsoleService {
       routeId: driver.routeId?.toString() ?? null,
       vehicleId: driver.vehicleId?.toString() ?? null,
     };
+  }
+
+  async deleteAllianceDriver(admin: AuthenticatedAdmin, driverId: string) {
+    const allianceId = this.requireAllianceId(admin);
+
+    const driver = await this.prisma.driver.findFirst({
+      where: { id: BigInt(driverId), allianceId },
+    });
+
+    if (!driver) {
+      throw new NotFoundException("Haydovchi topilmadi");
+    }
+
+    await this.prisma.driver.delete({
+      where: { id: BigInt(driverId) },
+    });
+
+    return { success: true };
   }
 
   async listAllianceVehicles(admin: AuthenticatedAdmin) {
@@ -563,5 +581,16 @@ export class AdminConsoleService {
   private buildPaymentSlug(plateNumber: string) {
     const normalized = plateNumber.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     return `${normalized}-${Date.now()}`;
+  }
+
+  private normalizePhone(phone: string) {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.startsWith("998")) {
+      return "+" + digits;
+    }
+    if (digits.length === 9) {
+      return "+998" + digits;
+    }
+    return "+" + digits; // Fallback for other countries if any
   }
 }

@@ -265,6 +265,20 @@ export default function App() {
       setLoading(false);
     }
   }
+  async function handleDeleteDriver(id) {
+    if (!window.confirm("Rostdan ham ushbu haydovchini o'chirasizmi?")) return;
+    setLoading(true);
+    setNotice(null);
+    try {
+      await adminApi.alliance.deleteDriver(id);
+      await refreshRoleData("alliance_admin", { silent: true });
+      setNotice({ type: "success", text: "Haydovchi o'chirildi." });
+    } catch (error) {
+      setNotice({ type: "error", text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleCreateVehicle(event) {
     event.preventDefault();
@@ -471,6 +485,7 @@ export default function App() {
                 setDriverForm((current) => ({ ...current, [field]: value }))
               }
               onCreateDriver={handleCreateDriver}
+              onDeleteDriver={handleDeleteDriver}
               vehicleForm={vehicleForm}
               onVehicleFormChange={(field, value) =>
                 setVehicleForm((current) => ({ ...current, [field]: value }))

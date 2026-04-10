@@ -17,3 +17,5 @@ apps/mobile/android/.gradle
 .idea
 .vscode
 tmp_*
+
+*.vsix

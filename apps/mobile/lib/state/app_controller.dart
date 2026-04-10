@@ -18,6 +18,7 @@ import '../models/payment_summary.dart';
 import '../models/queue_snapshot.dart';
 import '../models/route_model.dart';
 import '../models/route_point_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AppController extends ChangeNotifier {
   AppController({
@@ -55,6 +56,7 @@ class AppController extends ChangeNotifier {
   int _currentTab = 0;
   Timer? _locationTimer;
   bool _sendingLocation = false;
+  String? _verificationId;
 
   bool get isAuthenticated => _session != null;
   bool get busy => _busy;
@@ -129,19 +131,36 @@ class AppController extends ChangeNotifier {
     _setBusy(true);
     _clearMessages();
 
-    try {
-      final payload = await _apiClient.sendCode(normalizedPhone);
-      _debugCode = payload['debugCode']?.toString();
+    if (AppConfig.exposeDebugAuthCode && normalizedPhone == '+998000000000') {
+      // Dev mode shortcut
       _codeRequested = true;
-      _infoMessage =
-          (_debugCode != null &&
-                  _debugCode!.isNotEmpty &&
-                  AppConfig.exposeDebugAuthCode)
-              ? 'SMS test rejimida yuborildi. Kod ekranda ko‘rsatiladi.'
-              : 'SMS kod yuborildi.';
+      _infoMessage = 'SMS test rejimida yuborildi.';
+      _setBusy(false);
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: normalizedPhone,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+           // We'll let them click/enter code manually
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          _errorMessage = e.message ?? 'Firebase Auth xatosi yuz berdi';
+          _setBusy(false);
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _verificationId = verificationId;
+          _codeRequested = true;
+          _infoMessage = 'SMS kod yuborildi.';
+          _setBusy(false);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
     } catch (error) {
       _errorMessage = _resolveError(error);
-    } finally {
       _setBusy(false);
     }
   }
@@ -157,7 +176,30 @@ class AppController extends ChangeNotifier {
     _clearMessages();
 
     try {
-      final session = await _apiClient.verifyCode(_pendingPhone!, code.trim());
+      AuthSession session;
+
+      if (AppConfig.exposeDebugAuthCode && _pendingPhone == '+998000000000') {
+        session = await _apiClient.verifyCode(phone: _pendingPhone!, code: code.trim());
+      } else {
+        if (_verificationId == null) {
+           throw Exception("Server xatosi: Verification ID yo'q");
+        }
+        
+        final credential = PhoneAuthProvider.credential(
+          verificationId: _verificationId!,
+          smsCode: code.trim(),
+        );
+
+        final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+        final idToken = await userCredential.user?.getIdToken();
+
+        if (idToken == null) {
+          throw Exception("Firebase auth token olinmadi");
+        }
+
+        session = await _apiClient.verifyCode(idToken: idToken);
+      }
+
       _session = session;
       _apiClient.setAccessToken(session.accessToken);
       await _sessionStorage.saveAccessToken(session.accessToken);
@@ -402,6 +444,7 @@ class AppController extends ChangeNotifier {
     _currentTab = 0;
     _apiClient.setAccessToken(null);
     unawaited(_sessionStorage.clear());
+    unawaited(FirebaseAuth.instance.signOut());
     notifyListeners();
   }
 

@@ -16,10 +16,10 @@ export function AllianceAdminView({
   routes,
   queues,
   payments,
-  cashEntries,
   driverForm,
   onDriverFormChange,
   onCreateDriver,
+  onDeleteDriver,
   vehicleForm,
   onVehicleFormChange,
   onCreateVehicle,
@@ -204,6 +204,15 @@ export function AllianceAdminView({
                   key: "walletBalance",
                   label: "Wallet",
                   render: (row) => money(row.walletBalance),
+                },
+                {
+                  key: "actions",
+                  label: "",
+                  render: (row) => (
+                    <Button variant="ghost" onClick={() => onDeleteDriver(row.id)}>
+                      O'chirish
+                    </Button>
+                  ),
                 },
               ]}
               rows={drivers}

@@ -2,14 +2,21 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
+import * as admin from "firebase-admin";
 import { PrismaService } from "../../database/prisma.service";
 import { SendCodeDto } from "./dto/send-code.dto";
-import { SmsService } from "./sms.service";
 import { VerifyCodeDto } from "./dto/verify-code.dto";
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: "damastic-8bb8b",
+  });
+}
 
 @Injectable()
 export class AuthService {
@@ -17,207 +24,74 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly jwtService: JwtService,
-    private readonly smsService: SmsService,
   ) {}
 
-  async sendCode(dto: SendCodeDto) {
-    const phone = dto.phone.trim();
-    const driver = await this.prisma.driver.findUnique({
-      where: { phone },
-    });
-
-    if (!driver) {
-      throw new NotFoundException("Bu raqam bo'yicha haydovchi topilmadi");
-    }
-
-    const [recentCodesCount, latestUnusedCode] = await Promise.all([
-      this.prisma.authCode.count({
-        where: {
-          phone,
-          createdAt: {
-            gte: new Date(Date.now() - 60 * 60 * 1000),
-          },
-        },
-      }),
-      this.prisma.authCode.findFirst({
-        where: {
-          phone,
-          usedAt: null,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      }),
-    ]);
-
-    const resendIntervalSeconds = this.config.get<number>(
-      "OTP_RESEND_INTERVAL_SECONDS",
-      60,
-    );
-    const maxSendPerHour = this.config.get<number>("OTP_MAX_SEND_PER_HOUR", 5);
-
-    if (recentCodesCount >= maxSendPerHour) {
-      throw new BadRequestException(
-        "SMS kod yuborish limiti tugadi. Keyinroq urinib ko'ring",
-      );
-    }
-
-    if (latestUnusedCode) {
-      const secondsSinceLastCode = Math.floor(
-        (Date.now() - latestUnusedCode.createdAt.getTime()) / 1000,
-      );
-
-      if (secondsSinceLastCode < resendIntervalSeconds) {
-        throw new BadRequestException(
-          `SMS kodni qayta yuborish uchun ${
-            resendIntervalSeconds - secondsSinceLastCode
-          } soniya kuting`,
-        );
-      }
-    }
-
-    const otpLength = this.config.get<number>("OTP_LENGTH", 6);
-    const code = this.generateCode(otpLength);
-    const expiresMinutes = this.config.get<number>("OTP_EXPIRES_MINUTES", 5);
-    const expiresAt = new Date(Date.now() + expiresMinutes * 60 * 1000);
-
-    await this.prisma.authCode.updateMany({
-      where: {
-        phone,
-        usedAt: null,
-      },
-      data: {
-        usedAt: new Date(),
-      },
-    });
-
-    await this.prisma.authCode.create({
-      data: {
-        phone,
-        driverId: driver.id,
-        code,
-        expiresAt,
-      },
-    });
-
-    try {
-      await this.smsService.sendOneTimePassword(phone, code, expiresMinutes);
-    } catch (error) {
-      await this.prisma.authCode.updateMany({
-        where: {
-          phone,
-          code,
-          usedAt: null,
-        },
-        data: {
-          usedAt: new Date(),
-        },
-      });
-
-      if (error instanceof Error) {
-        throw new ServiceUnavailableException(error.message);
-      }
-
-      throw new ServiceUnavailableException("SMS kod yuborib bo'lmadi");
-    }
-
+  async sendCode(_dto: SendCodeDto) {
+    // Mijoz Firebase orqali o'zi SMS yuboradi. Eskiz'dagi eski mantiqni o'chiramiz.
+    // Client SDK takes care of this step.
     return {
       success: true,
-      expiresAt,
-      ...(this.config.get<boolean>("AUTH_EXPOSE_DEBUG_CODE", false)
-        ? { debugCode: code }
-        : {}),
+      message: "Frontend Firebase orqali tasdiqlaydi.",
     };
   }
 
   async verifyCode(dto: VerifyCodeDto) {
-    const phone = dto.phone.trim();
-    const code = dto.code.trim();
-    const maxVerifyAttempts = this.config.get<number>(
-      "OTP_MAX_VERIFY_ATTEMPTS",
-      5,
-    );
+    const isDev = this.config.get<string>("NODE_ENV") === "development";
+    let phoneNumber: string | undefined;
 
-    const authCode = await this.prisma.authCode.findFirst({
+    if (!isDev || dto.idToken) {
+      if (!dto.idToken) {
+        throw new BadRequestException("Firebase idToken null/xato");
+      }
+      try {
+        const decoded = await admin.auth().verifyIdToken(dto.idToken);
+        phoneNumber = decoded.phone_number;
+      } catch (e) {
+        throw new UnauthorizedException("Noto'g'ri yoki vaqti o'tgan token");
+      }
+    } else {
+      if (dto.code !== "1234") {
+        throw new BadRequestException("SMS kodi noto'g'ri");
+      }
+      phoneNumber = dto.phone?.trim();
+    }
+
+    if (!phoneNumber) {
+      throw new BadRequestException("Telefon raqam aniqlanmadi");
+    }
+
+    const driver = await this.prisma.driver.findFirst({
       where: {
-        phone,
-        usedAt: null,
+        phone: phoneNumber,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        id: true,
-        code: true,
-        attempts: true,
-        expiresAt: true,
-        driver: {
-          include: {
-            route: true,
-          },
-        },
+      include: {
+        route: true,
       },
     });
 
-    if (!authCode) {
-      throw new BadRequestException("SMS kod noto'g'ri");
+    if (!driver) {
+      throw new NotFoundException("Ushbu raqam bo'yicha haydovchi topilmadi");
     }
-
-    if (authCode.expiresAt.getTime() < Date.now()) {
-      await this.prisma.authCode.update({
-        where: { id: authCode.id },
-        data: { usedAt: new Date() },
-      });
-      throw new BadRequestException("SMS kod muddati tugagan");
-    }
-
-    if (authCode.attempts >= maxVerifyAttempts) {
-      await this.prisma.authCode.update({
-        where: { id: authCode.id },
-        data: { usedAt: new Date() },
-      });
-      throw new BadRequestException("SMS kod bo'yicha urinishlar soni tugadi");
-    }
-
-    if (authCode.code !== code) {
-      await this.prisma.authCode.update({
-        where: { id: authCode.id },
-        data: {
-          attempts: authCode.attempts + 1,
-        },
-      });
-
-      throw new BadRequestException("SMS kod noto'g'ri");
-    }
-
-    if (!authCode.driver) {
-      throw new NotFoundException("Haydovchi topilmadi");
-    }
-
-    await this.prisma.authCode.update({
-      where: { id: authCode.id },
-      data: { usedAt: new Date() },
-    });
 
     const accessToken = await this.jwtService.signAsync({
-      sub: authCode.driver.id.toString(),
-      phone: authCode.driver.phone,
+      sub: driver.id.toString(),
+      phone: driver.phone,
       typ: "driver",
     });
 
     return {
       accessToken,
       driver: {
-        id: authCode.driver.id.toString(),
-        name: authCode.driver.name,
-        phone: authCode.driver.phone,
-        status: authCode.driver.status,
-        carNumber: authCode.driver.carNumber,
-        route: authCode.driver.route
+        id: driver.id.toString(),
+        name: driver.name,
+        phone: driver.phone,
+        status: driver.status,
+        carNumber: driver.carNumber,
+        route: driver.route
           ? {
-              id: authCode.driver.route.id.toString(),
-              name: authCode.driver.route.name,
-              price: authCode.driver.route.price.toNumber(),
+              id: driver.route.id.toString(),
+              name: driver.route.name,
+              price: driver.route.price.toNumber(),
             }
           : null,
       },
