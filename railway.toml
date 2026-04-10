@@ -1,0 +1,11 @@
+[build]
+builder = "RAILPACK"
+buildCommand = "npm install --prefix apps/backend && npm --prefix apps/backend run build"
+watchPatterns = ["apps/backend/**", "railway.toml"]
+
+[deploy]
+startCommand = "npm --prefix apps/backend run start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
