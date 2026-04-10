@@ -22,7 +22,7 @@ async function bootstrap() {
   const clientOrigin = config.get<string>("CLIENT_APP_URL", "http://localhost:5173");
 
   app.enableCors({
-    origin: clientOrigin,
+    origin: true,
     credentials: true,
   });
 
