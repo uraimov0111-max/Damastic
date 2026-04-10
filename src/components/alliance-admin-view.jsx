@@ -16,6 +16,7 @@ export function AllianceAdminView({
   routes,
   queues,
   payments,
+  cashEntries,
   driverForm,
   onDriverFormChange,
   onCreateDriver,
